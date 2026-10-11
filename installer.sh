@@ -40,7 +40,8 @@ else
         | $SUDO tar -xz -C "$TMP/repo" --strip-components=1
 fi
 
-[[ -f $TMP/repo/zapret-control.sh ]] || { echo "Не удалось загрузить скрипт"; exit 1; }
+# проверка через sudo: временный каталог принадлежит root (права 700)
+$SUDO test -f "$TMP/repo/zapret-control.sh" || { echo "Не удалось загрузить скрипт"; exit 1; }
 $SUDO rm -rf "$DEST"
 $SUDO mv "$TMP/repo" "$DEST"
 $SUDO chown -R root:root "$DEST"
