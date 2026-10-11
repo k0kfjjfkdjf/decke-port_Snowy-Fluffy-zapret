@@ -23,7 +23,22 @@ ExecStop=$ZAPRET_DIR/init.d/sysv/zapret stop
 WantedBy=multi-user.target
 EOF
     chmod 644 "$UNIT_FILE"
+    write_keep_list
     systemctl daemon-reload
+}
+
+# С SteamOS 3.6 обновление переносит из /etc только файлы из белого списка.
+# Юниты *.service и *.wants там уже есть по умолчанию, но добавим свои явно,
+# на случай если Valve изменит стандартный список.
+KEEP_LIST="/etc/atomic-update.conf.d/zapret.conf"
+write_keep_list() {
+    [[ -d /etc/atomic-update.conf.d ]] || return 0
+    cat > "$KEEP_LIST" <<EOF
+# zapret (Steam Deck port): сохранить сервис при обновлениях SteamOS
+$UNIT_FILE
+/etc/systemd/system/multi-user.target.wants/zapret.service
+EOF
+    chmod 644 "$KEEP_LIST"
 }
 
 # Хвосты от установки оригинальным скриптом в /opt: после обновления
@@ -72,12 +87,49 @@ check_zapret_status() {
     [[ $enabled == enabled ]] && ZAPRET_ENABLED=true || ZAPRET_ENABLED=false
 }
 
+# Установлен = файлы в /home на месте. Юнит в /etc проверяется отдельно:
+# если пропал только он (обновление SteamOS), его можно пересоздать.
 check_zapret_exist() {
-    if [[ -f $UNIT_FILE && -d $ZAPRET_DIR/binaries && -f $ZAPRET_DIR/init.d/sysv/zapret ]]; then
+    MISSING=()
+    [[ -d $ZAPRET_DIR ]] || MISSING+=("каталог $ZAPRET_DIR")
+    [[ -f $ZAPRET_DIR/init.d/sysv/zapret ]] || MISSING+=("$ZAPRET_DIR/init.d/sysv/zapret")
+    [[ -x $ZAPRET_DIR/nfq/nfqws ]] || MISSING+=("$ZAPRET_DIR/nfq/nfqws")
+    [[ -f $ZAPRET_CONFIG ]] || MISSING+=("$ZAPRET_CONFIG")
+    if (( ${#MISSING[@]} == 0 )); then
         ZAPRET_EXIST=true
     else
         ZAPRET_EXIST=false
     fi
+    if [[ -f $UNIT_FILE ]] && grep -q "$ZAPRET_DIR/init.d/sysv/zapret" "$UNIT_FILE"; then
+        UNIT_OK=true
+    else
+        UNIT_OK=false
+    fi
+}
+
+nfqws_running() {
+    NFQWS_PIDS="$(pgrep -d ' ' -x nfqws 2>/dev/null)"
+    [[ -n $NFQWS_PIDS ]]
+}
+
+# Следы установки оригинальным скриптом (в /opt)
+legacy_install_hint() {
+    if [[ -d $ORIG_ZAPRET_DIR || -d /opt/zapret.installer || -e /bin/zapret ]]; then
+        echo -e "  ${C_YEL}Найдены следы оригинального установщика (/opt/zapret, /bin/zapret).${C_RST}"
+        echo -e "  ${C_YEL}Команда 'zapret' могла запускать его, а не этот порт.${C_RST}"
+    fi
+}
+
+# Пересоздать юнит, если файлы на месте, а юнит пропал или устарел
+repair_unit_if_needed() {
+    [[ $ZAPRET_EXIST == true && $UNIT_OK == false ]] || return 0
+    msg "Сервис zapret не найден в /etc или указывает не туда — пересоздаю..."
+    write_unit
+    manage_autostart enable >/dev/null 2>&1
+    manage_service restart
+    check_zapret_exist
+    check_zapret_status
+    sleep 1
 }
 
 toggle_service() {

@@ -18,6 +18,12 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+# sudo может сбросить локаль — без UTF-8 bash считает кириллицу байтами и рамки съезжают
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *[Uu][Tt][Ff]-8*|*[Uu][Tt][Ff]8*) ;;
+    *) export LC_ALL=C.UTF-8 ;;
+esac
+
 for f in paths utils fw service config install menu; do
     # shellcheck source=/dev/null
     source "$HERE/files/$f.sh" || { echo "Не найден $HERE/files/$f.sh"; exit 1; }

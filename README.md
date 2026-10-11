@@ -25,7 +25,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/k0kfjjfkdjf/decke-port_Snowy
 | стратегии и списки | `/home/zapret/zapret.cfgs` | да |
 | этот скрипт | `/home/zapret/installer` | да |
 | свои стратегия/хостлист | `/home/zapret/custom` | да |
-| сервис | `/etc/systemd/system/zapret.service` | да (`/etc` сохраняется) |
+| сервис | `/etc/systemd/system/zapret.service` | да: юниты входят в белый список SteamOS, плюс свой `/etc/atomic-update.conf.d/zapret.conf` |
 | команда `zapret`, ярлык | `~/.local/bin`, `~/.local/share/applications` | да |
 
 Read-only и pacman при установке **не трогаются**. pacman нужен только если в системе нет ни `nft`,
@@ -47,6 +47,15 @@ Read-only и pacman при установке **не трогаются**. pacma
 - Только установка из релиза: в git-версии zapret нет готовых бинарников, а компилятора на Деке нет.
 - Если до этого zapret ставился оригинальным скриптом в `/opt`, его юниты (`zapret-list-update.timer` и битые ссылки)
   убираются автоматически. Сам `/opt/zapret` исчезнет со следующим обновлением SteamOS.
+
+## После обновления SteamOS
+
+С версии 3.6 SteamOS при обновлении переносит из `/etc` только файлы из белого списка. Юниты `systemd`
+в него входят, а порт дополнительно прописывает свой файл в `/etc/atomic-update.conf.d/`.
+Если юнит всё же пропадёт, меню само его пересоздаст при следующем запуске `zapret`: всё остальное лежит в `/home`.
+
+В главном меню видно, запущен ли `nfqws` на самом деле, а если установка не найдена, меню перечислит, каких файлов
+не хватает, и предупредит о следах оригинального установщика в `/opt`.
 
 ## Удаление
 

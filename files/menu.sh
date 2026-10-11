@@ -19,12 +19,19 @@ main_menu() {
         clear
         check_zapret_exist
         check_zapret_status
+        repair_unit_if_needed
         detect_fwtype
+        clear
         header "Меню управления Запретом"
 
         if [[ $ZAPRET_EXIST == true ]]; then
             [[ $ZAPRET_ACTIVE == true ]] && echo -e "  ${C_GRN}Запрет запущен${C_RST}" || echo -e "  ${C_RED}Запрет выключен${C_RST}"
             [[ $ZAPRET_ENABLED == true ]] && echo -e "  ${C_GRN}Запрет в автозагрузке${C_RST}" || echo -e "  ${C_YEL}Запрет не в автозагрузке${C_RST}"
+            if nfqws_running; then
+                echo -e "  nfqws: ${C_GRN}работает${C_RST} (PID $NFQWS_PIDS)"
+            else
+                echo -e "  nfqws: ${C_RED}не запущен${C_RST}"
+            fi
             echo -e "  Файрвол: $(fw_status_text)"
             [[ -z $FWTYPE ]] && echo -e "  ${C_YEL}Похоже, nftables пропал после обновления SteamOS — пункт 5.${C_RST}"
             echo
@@ -46,7 +53,16 @@ main_menu() {
                 *) echo -e "${C_RED}Неверный ввод! Попробуйте снова.${C_RST}"; sleep 2 ;;
             esac
         else
-            echo -e "  ${C_YEL}Запрет не установлен${C_RST}"
+            echo -e "  ${C_YEL}Запрет не установлен в $ZBASE${C_RST}"
+            if [[ -d $ZBASE/zapret ]]; then
+                echo -e "  ${C_YEL}Не хватает:${C_RST}"
+                local m
+                for m in "${MISSING[@]}"; do echo "    - $m"; done
+            fi
+            if nfqws_running; then
+                echo -e "  ${C_YEL}При этом nfqws запущен (PID $NFQWS_PIDS) — это другая установка zapret.${C_RST}"
+            fi
+            legacy_install_hint
             echo -e "  Файрвол: $(fw_status_text)"
             echo
             echo -e "  ${C_BLU}0)${C_RST} Выйти"

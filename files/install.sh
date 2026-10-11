@@ -226,7 +226,7 @@ uninstall_zapret() {
     ask_yn "Вы действительно хотите удалить zapret (весь каталог $ZBASE)?" N || return
     systemctl stop "$UNIT_NAME" >/dev/null 2>&1
     systemctl disable "$UNIT_NAME" >/dev/null 2>&1
-    rm -f "$UNIT_FILE"
+    rm -f "$UNIT_FILE" "$KEEP_LIST"
     systemctl daemon-reload
     remove_launcher
     rm -rf "$ZBASE"
